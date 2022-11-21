@@ -24,17 +24,24 @@ class SharingShortcutsManager {
     }
 
     fun replaceDynamicShortcuts(context: Context) {
-        val shortcuts = createShortcuts(context)
-            .take(ShortcutManagerCompat.getMaxShortcutCountPerActivity(context))
+        App.EXECUTORS.diskIO().execute {
+            val t1 = System.currentTimeMillis()
 
-        ShortcutManagerCompat.removeAllDynamicShortcuts(context)
-        ShortcutManagerCompat.addDynamicShortcuts(context, shortcuts)
+            val shortcuts = createShortcuts(context)
+                .take(ShortcutManagerCompat.getMaxShortcutCountPerActivity(context))
 
-        if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, "Published ${shortcuts.size} shortcuts")
+            ShortcutManagerCompat.removeAllDynamicShortcuts(context)
+            ShortcutManagerCompat.addDynamicShortcuts(context, shortcuts)
+
+            if (BuildConfig.LOG_DEBUG) {
+                val t2 = System.currentTimeMillis()
+                LogUtils.d(TAG, "Published ${shortcuts.size} shortcuts in ${t2 - t1}ms")
+            }
+        }
     }
 
     private fun createShortcuts(context: Context): List<ShortcutInfoCompat> {
-        return dataRepository.getBooks().mapNotNull { bookView ->
+        return dataRepository.getBooks().mapNotNull { bookView -> // FIXME: ANR
             val book = bookView.book
 
             if (hasRequestedDirectShare(book)) {
@@ -45,7 +52,9 @@ class SharingShortcutsManager {
                 val title = BookUtils.getFragmentTitleForBook(book)
                 val icon = IconCompat.createWithResource(context, R.mipmap.cic_shortcut_notebook)
                 val categories = setOf(categoryTextShareTarget)
-                val intent = ShareActivity.createNewNoteInNotebookIntent(context, bookId)
+                val intent = ShareActivity.createNewNoteIntent(context).apply {
+                    putExtra(AppIntent.EXTRA_BOOK_ID, bookId);
+                }
 
                 ShortcutInfoCompat.Builder(context, id)
                     .setShortLabel(name)

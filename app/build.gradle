@@ -4,14 +4,16 @@ apply plugin: 'kotlin-kapt'
 
 
 android {
+    namespace 'com.orgzly'
+
     compileSdkVersion 32
 
     defaultConfig {
         minSdkVersion 21 // Lollipop (5.0)
         targetSdkVersion 32 // Android 12L
         applicationId "com.orgzly"
-        versionCode 161
-        versionName "1.8.6"
+        versionCode 171
+        versionName "1.8.10"
 
         testInstrumentationRunner "com.orgzly.android.OrgzlyTestRunner"
         // testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -47,6 +49,8 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 
             buildConfigField "boolean", "LOG_DEBUG", "false"
+
+            // signingConfig signingConfigs.debug
         }
 
         debug {
@@ -104,6 +108,8 @@ android {
 dependencies {
     implementation orgJavaLocation()
 
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$versions.kotlin_coroutines")
+
     implementation "org.jetbrains:annotations:$versions.jetbrains_annotations"
 
     implementation "androidx.multidex:multidex:$versions.android_multidex"
@@ -126,9 +132,12 @@ dependencies {
     implementation "androidx.room:room-runtime:$versions.android_room"
     testImplementation "androidx.room:room-testing:$versions.android_room"
     kapt "androidx.room:room-compiler:$versions.android_room"
+    implementation("androidx.room:room-ktx:$versions.android_room")
 
     // Lifecycle
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$versions.android_lifecycle"
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:$versions.android_lifecycle")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:$versions.android_lifecycle")
 
     androidTestImplementation "androidx.annotation:annotation:$versions.android_annotation"
 

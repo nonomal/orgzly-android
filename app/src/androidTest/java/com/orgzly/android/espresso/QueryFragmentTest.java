@@ -4,7 +4,6 @@ import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.Espresso.pressBack;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.longClick;
-import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.contrib.DrawerActions.open;
 import static androidx.test.espresso.contrib.PickerActions.setDate;
@@ -15,17 +14,17 @@ import static androidx.test.espresso.matcher.ViewMatchers.withClassName;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withParent;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
-import static com.orgzly.android.espresso.EspressoUtils.contextualToolbarOverflowMenu;
-import static com.orgzly.android.espresso.EspressoUtils.onActionItemClick;
-import static com.orgzly.android.espresso.EspressoUtils.onBook;
-import static com.orgzly.android.espresso.EspressoUtils.onNoteInBook;
-import static com.orgzly.android.espresso.EspressoUtils.onNoteInSearch;
-import static com.orgzly.android.espresso.EspressoUtils.onNotesInSearch;
-import static com.orgzly.android.espresso.EspressoUtils.recyclerViewItemCount;
-import static com.orgzly.android.espresso.EspressoUtils.replaceTextCloseKeyboard;
-import static com.orgzly.android.espresso.EspressoUtils.searchForText;
+import static com.orgzly.android.espresso.util.EspressoUtils.contextualToolbarOverflowMenu;
+import static com.orgzly.android.espresso.util.EspressoUtils.onActionItemClick;
+import static com.orgzly.android.espresso.util.EspressoUtils.onBook;
+import static com.orgzly.android.espresso.util.EspressoUtils.onNoteInBook;
+import static com.orgzly.android.espresso.util.EspressoUtils.onNoteInSearch;
+import static com.orgzly.android.espresso.util.EspressoUtils.onNotesInSearch;
+import static com.orgzly.android.espresso.util.EspressoUtils.recyclerViewItemCount;
+import static com.orgzly.android.espresso.util.EspressoUtils.replaceTextCloseKeyboard;
+import static com.orgzly.android.espresso.util.EspressoUtils.scroll;
+import static com.orgzly.android.espresso.util.EspressoUtils.searchForText;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
@@ -112,7 +111,7 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("b.book-one another note");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(1)));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText("Another note."), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText("Another note."), isDisplayed())));
     }
 
     @Test
@@ -164,9 +163,9 @@ public class QueryFragmentTest extends OrgzlyTest {
 
         onNotesInSearch().check(matches(recyclerViewItemCount(3)));
 
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText("#A  Note B."), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText("#A  Note #15."), isDisplayed())));
-        onNoteInSearch(2, R.id.item_head_title).check(matches(allOf(withText("#A  Note #16."), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText("#A  Note B."), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText("#A  Note #15."), isDisplayed())));
+        onNoteInSearch(2, R.id.item_head_title_view).check(matches(allOf(withText("#A  Note #16."), isDisplayed())));
     }
 
     @Test
@@ -178,10 +177,10 @@ public class QueryFragmentTest extends OrgzlyTest {
 
         onNotesInSearch().check(matches(recyclerViewItemCount(4)));
 
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText("#A  Note B."), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText("#A  Note #15."), isDisplayed())));
-        onNoteInSearch(2, R.id.item_head_title).check(matches(allOf(withText("#A  Note #16."), isDisplayed())));
-        onNoteInSearch(3, R.id.item_head_title).check(matches(allOf(withText("#C  Note #18."), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText("#A  Note B."), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText("#A  Note #15."), isDisplayed())));
+        onNoteInSearch(2, R.id.item_head_title_view).check(matches(allOf(withText("#A  Note #16."), isDisplayed())));
+        onNoteInSearch(3, R.id.item_head_title_view).check(matches(allOf(withText("#C  Note #18."), isDisplayed())));
     }
 
 
@@ -218,7 +217,7 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("Note");
         onNoteInSearch(0).perform(longClick());
         onView(withId(R.id.toggle_state)).perform(click());
-        onNoteInSearch(0, R.id.item_head_title).check(matches(withText(startsWith("DONE"))));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(withText(startsWith("DONE"))));
     }
 
     /**
@@ -249,10 +248,10 @@ public class QueryFragmentTest extends OrgzlyTest {
         onView(withId(R.id.schedule)).perform(click());
         onView(withId(R.id.date_picker_button)).perform(click());
         onView(withClassName(equalTo(DatePicker.class.getName()))).perform(setDate(2014, 4, 1));
-        onView(anyOf(withText(R.string.ok), withText(R.string.done))).perform(click());
-        onView(withId(R.id.time_picker_button)).perform(scrollTo(), click());
+        onView(withText(android.R.string.ok)).perform(click());
+        onView(withId(R.id.time_picker_button)).perform(scroll(), click());
         onView(withClassName(equalTo(TimePicker.class.getName()))).perform(setTime(9, 15));
-        onView(anyOf(withText(R.string.ok), withText(R.string.done))).perform(click());
+        onView(withText(android.R.string.ok)).perform(click());
         onView(withText(R.string.set)).perform(click());
 
         onNotesInSearch().check(matches(recyclerViewItemCount(2)));
@@ -367,9 +366,9 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("t.tag1 t.tag2");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(3)));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText(startsWith("Note B")), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText(startsWith("Note C")), isDisplayed())));
-        onNoteInSearch(2, R.id.item_head_title).check(matches(allOf(withText(startsWith("Note D")), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText(startsWith("Note B")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText(startsWith("Note C")), isDisplayed())));
+        onNoteInSearch(2, R.id.item_head_title_view).check(matches(allOf(withText(startsWith("Note D")), isDisplayed())));
     }
 
     @Test
@@ -394,9 +393,9 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("t.tag3");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(2)));
-        onNoteInSearch(0, R.id.item_head_title)
+        onNoteInSearch(0, R.id.item_head_title_view)
                 .check(matches(allOf(withText("Note D  tag3 • tag2 tag1"), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title)
+        onNoteInSearch(1, R.id.item_head_title_view)
                 .check(matches(allOf(withText("Note C  tag3 • tag2 tag1"), isDisplayed())));
     }
 
@@ -422,9 +421,9 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("t.tag3");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(2)));
-        onNoteInSearch(0, R.id.item_head_title)
+        onNoteInSearch(0, R.id.item_head_title_view)
                 .check(matches(allOf(withText("Note C  tag3 • tag1 tag2"), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title)
+        onNoteInSearch(1, R.id.item_head_title_view)
                 .check(matches(allOf(withText("Note D  tag3 • tag1 tag2"), isDisplayed())));
     }
 
@@ -453,9 +452,9 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("t.tag3");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(2)));
-        onNoteInSearch(0, R.id.item_head_title)
+        onNoteInSearch(0, R.id.item_head_title_view)
                 .check(matches(allOf(withText("Note C  tag3 • tag1 tag2"), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title)
+        onNoteInSearch(1, R.id.item_head_title_view)
                 .check(matches(allOf(withText("Note D  tag3 • tag1 tag2"), isDisplayed())));
     }
 
@@ -474,8 +473,8 @@ public class QueryFragmentTest extends OrgzlyTest {
         onView(allOf(withText("notebook-1"), isDisplayed())).perform(click());
         searchForText("note o.scheduled");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(withText("Note B")));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(withText("Note A")));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(withText("Note B")));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(withText("Note A")));
     }
 
     @Test
@@ -495,9 +494,9 @@ public class QueryFragmentTest extends OrgzlyTest {
         onView(allOf(withText("notebook-1"), isDisplayed())).perform(click());
         searchForText("s.today .i.done o.s");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(withText("Note A")));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(withText("Note C")));
-        onNoteInSearch(2, R.id.item_head_title).check(matches(withText("Note B")));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(withText("Note A")));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(withText("Note C")));
+        onNoteInSearch(2, R.id.item_head_title_view).check(matches(withText("Note B")));
     }
 
     @Test
@@ -517,9 +516,9 @@ public class QueryFragmentTest extends OrgzlyTest {
         onView(allOf(withText("notebook-1"), isDisplayed())).perform(click());
         searchForText("d.today .i.done .o.d");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(withText("Note B")));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(withText("Note C")));
-        onNoteInSearch(2, R.id.item_head_title).check(matches(withText("Note A")));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(withText("Note B")));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(withText("Note C")));
+        onNoteInSearch(2, R.id.item_head_title_view).check(matches(withText("Note A")));
     }
 
     @Test
@@ -580,8 +579,8 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText(".t.b");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(2)));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText("Note A  a"), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText("Note D"), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText("Note A  a"), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText("Note D"), isDisplayed())));
     }
 
     @Test
@@ -597,8 +596,8 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("tn.a or tn.b");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(2)));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText(startsWith("Note A")), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText(startsWith("Note B")), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText(startsWith("Note A")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText(startsWith("Note B")), isDisplayed())));
     }
 
     @Test
@@ -613,10 +612,10 @@ public class QueryFragmentTest extends OrgzlyTest {
         onView(allOf(withText("notebook"), isDisplayed())).perform(click());
         searchForText("o.p");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText(containsString("Note A")), isDisplayed())));
-        onNoteInSearch(2, R.id.item_head_title).check(matches(allOf(withText(containsString("Note D")), isDisplayed())));
-        onNoteInSearch(3, R.id.item_head_title).check(matches(allOf(withText(containsString("Note C")), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note A")), isDisplayed())));
+        onNoteInSearch(2, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note D")), isDisplayed())));
+        onNoteInSearch(3, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note C")), isDisplayed())));
     }
 
     @Test
@@ -631,10 +630,10 @@ public class QueryFragmentTest extends OrgzlyTest {
         onView(allOf(withText("notebook"), isDisplayed())).perform(click());
         searchForText(".o.p");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText(containsString("Note C")), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText(containsString("Note D")), isDisplayed())));
-        onNoteInSearch(2, R.id.item_head_title).check(matches(allOf(withText(containsString("Note A")), isDisplayed())));
-        onNoteInSearch(3, R.id.item_head_title).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note C")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note D")), isDisplayed())));
+        onNoteInSearch(2, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note A")), isDisplayed())));
+        onNoteInSearch(3, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
     }
 
     @Test
@@ -651,8 +650,8 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText(".it.todo");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(2)));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText(containsString("Note C")), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText(containsString("Note D")), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note C")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note D")), isDisplayed())));
     }
 
     @Test
@@ -669,8 +668,8 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("it.todo");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(2)));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText(containsString("Note A")), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note A")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
     }
 
     @Test
@@ -687,7 +686,7 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("it.none");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(1)));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText(containsString("Note D")), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note D")), isDisplayed())));
     }
 
     @Test
@@ -704,9 +703,9 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText(".it.none");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(3)));
-        onNoteInSearch(0, R.id.item_head_title).check(matches(allOf(withText(containsString("Note A")), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
-        onNoteInSearch(2, R.id.item_head_title).check(matches(allOf(withText(containsString("Note C")), isDisplayed())));
+        onNoteInSearch(0, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note A")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
+        onNoteInSearch(2, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note C")), isDisplayed())));
     }
 
     @Test
@@ -724,8 +723,8 @@ public class QueryFragmentTest extends OrgzlyTest {
         searchForText("note");
         onView(withId(R.id.fragment_query_search_view_flipper)).check(matches(isDisplayed()));
         onNotesInSearch().check(matches(recyclerViewItemCount(3)));
-        onNoteInSearch(1, R.id.item_head_title).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
-        onNoteInSearch(1, R.id.item_head_content).check(matches(allOf(withText(containsString("Content for Note B")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_title_view).check(matches(allOf(withText(containsString("Note B")), isDisplayed())));
+        onNoteInSearch(1, R.id.item_head_content_view).check(matches(allOf(withText(containsString("Content for Note B")), isDisplayed())));
     }
 
     @Test
@@ -819,7 +818,7 @@ public class QueryFragmentTest extends OrgzlyTest {
         // Remove time usage
         onView(allOf(withText(endsWith("Note A")), isDisplayed())).perform(longClick());
         onView(withId(R.id.schedule)).perform(click());
-        onView(withId(R.id.time_used_checkbox)).perform(click());
+        onView(withId(R.id.time_used_checkbox)).perform(scroll(), click());
         onView(withText(R.string.set)).perform(click());
         pressBack();
 

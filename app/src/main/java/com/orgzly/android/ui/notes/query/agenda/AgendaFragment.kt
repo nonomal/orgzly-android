@@ -3,6 +3,7 @@ package com.orgzly.android.ui.notes.query.agenda
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
@@ -13,23 +14,23 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.orgzly.BuildConfig
 import com.orgzly.R
 import com.orgzly.android.prefs.AppPreferences
+import com.orgzly.android.sync.SyncRunner
 import com.orgzly.android.ui.OnViewHolderClickListener
 import com.orgzly.android.ui.SelectableItemAdapter
 import com.orgzly.android.ui.main.setupSearchView
+import com.orgzly.android.ui.notes.ItemGestureDetector
 import com.orgzly.android.ui.notes.NoteItemViewHolder
+import com.orgzly.android.ui.notes.NotePopup
 import com.orgzly.android.ui.notes.query.QueryFragment
 import com.orgzly.android.ui.notes.query.QueryViewModel
 import com.orgzly.android.ui.notes.query.QueryViewModel.Companion.APP_BAR_DEFAULT_MODE
 import com.orgzly.android.ui.notes.query.QueryViewModel.Companion.APP_BAR_SELECTION_MODE
 import com.orgzly.android.ui.notes.query.QueryViewModelFactory
-import com.orgzly.android.ui.notes.quickbar.ItemGestureDetector
-import com.orgzly.android.ui.notes.quickbar.QuickBarListener
-import com.orgzly.android.ui.notes.quickbar.QuickBars
 import com.orgzly.android.ui.settings.SettingsActivity
 import com.orgzly.android.ui.stickyheaders.StickyHeadersLinearLayoutManager
 import com.orgzly.android.ui.util.ActivityUtils
+import com.orgzly.android.ui.util.setDecorFitsSystemWindowsForBottomToolbar
 import com.orgzly.android.ui.util.setup
-import com.orgzly.android.ui.util.styledAttributes
 import com.orgzly.android.util.LogUtils
 import com.orgzly.databinding.FragmentQueryAgendaBinding
 
@@ -37,11 +38,7 @@ import com.orgzly.databinding.FragmentQueryAgendaBinding
 /**
  * Displays agenda results.
  */
-class AgendaFragment :
-        QueryFragment(),
-        OnViewHolderClickListener<AgendaItem>,
-        QuickBarListener {
-
+class AgendaFragment : QueryFragment(), OnViewHolderClickListener<AgendaItem> {
     private lateinit var binding: FragmentQueryAgendaBinding
 
     private val item2databaseIds = hashMapOf<Long, Long>()
@@ -62,6 +59,7 @@ class AgendaFragment :
         super.onCreate(savedInstanceState)
 
         requireActivity().onBackPressedDispatcher.addCallback(this, appBarBackPressHandler)
+        requireActivity().onBackPressedDispatcher.addCallback(this, notePopupDismissOnBackPress)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -75,9 +73,7 @@ class AgendaFragment :
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, savedInstanceState)
 
-        val quickBars = QuickBars(binding.root.context, false)
-
-        viewAdapter = AgendaAdapter(binding.root.context, this, quickBars)
+        viewAdapter = AgendaAdapter(binding.root.context, this)
         viewAdapter.setHasStableIds(true)
 
         // Restores selection, requires adapter
@@ -94,11 +90,15 @@ class AgendaFragment :
             rv.addItemDecoration(dividerItemDecoration)
 
             rv.addOnItemTouchListener(ItemGestureDetector(rv.context, object: ItemGestureDetector.Listener {
-                override fun onFling(direction: Int, x: Float, y: Float) {
-                    rv.findChildViewUnder(x, y)?.let { itemView ->
+                override fun onSwipe(direction: Int, e1: MotionEvent, e2: MotionEvent) {
+                    rv.findChildViewUnder(e1.x, e2.y)?.let { itemView ->
                         rv.findContainingViewHolder(itemView)?.let { vh ->
                             (vh as? NoteItemViewHolder)?.let {
-                                quickBars.onFling(it, direction, this@AgendaFragment)
+                                showPopupWindow(vh.itemId, NotePopup.Location.QUERY, direction, itemView, e1, e2) { noteId, buttonId ->
+                                    item2databaseIds[noteId]?.let {
+                                        handleActionItemClick(setOf(it), buttonId)
+                                    }
+                                }
                             }
                         }
                     }
@@ -124,9 +124,7 @@ class AgendaFragment :
 
             ActivityUtils.keepScreenOnUpdateMenuItem(activity, menu)
 
-            setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                typedArray.getResourceId(R.styleable.Icons_ic_menu_24dp, 0)
-            })
+            setNavigationIcon(R.drawable.ic_menu)
 
             setNavigationOnClickListener {
                 sharedMainActivityViewModel.openDrawer()
@@ -134,6 +132,10 @@ class AgendaFragment :
 
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
+                    R.id.sync -> {
+                        SyncRunner.startSync()
+                    }
+
                     R.id.activity_action_settings -> {
                         startActivity(Intent(context, SettingsActivity::class.java))
                     }
@@ -158,23 +160,24 @@ class AgendaFragment :
 
     private fun bottomToolbarToDefault() {
         binding.bottomToolbar.visibility = View.GONE
+
+        activity?.setDecorFitsSystemWindowsForBottomToolbar(binding.bottomToolbar.visibility)
     }
 
     private fun topToolbarToMainSelection() {
         binding.topToolbar.run {
             menu.clear()
+            inflateMenu(R.menu.query_cab_top)
 
-            // Hide buttons that can't be used when multiple notes are selected
-            listOf(R.id.focus).forEach { id ->
-                menu.findItem(id)?.isVisible = viewAdapter.getSelection().count == 1
-            }
-
-            setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                typedArray.getResourceId(R.styleable.Icons_ic_arrow_back_24dp, 0)
-            })
+            setNavigationIcon(R.drawable.ic_arrow_back)
 
             setNavigationOnClickListener {
                 viewModel.appBar.toMode(APP_BAR_DEFAULT_MODE)
+            }
+
+            setOnMenuItemClickListener { menuItem ->
+                handleActionItemClick(viewAdapter.getSelection().getIds(), menuItem.itemId)
+                true
             }
 
             // Number of selected notes as a title
@@ -185,18 +188,22 @@ class AgendaFragment :
 
     private fun bottomToolbarToMainSelection() {
         binding.bottomToolbar.run {
+            menu.clear()
+            inflateMenu(R.menu.query_cab_bottom)
+
             setOnMenuItemClickListener { menuItem ->
-                handleActionItemClick(menuItem.itemId, viewAdapter.getSelection().getIds())
+                handleActionItemClick(viewAdapter.getSelection().getIds(), menuItem.itemId)
                 true
             }
 
-            visibility = View.VISIBLE
-        }
-    }
+            // Hide buttons that can't be used when multiple notes are selected
+            listOf(R.id.focus).forEach { id ->
+                menu.findItem(id)?.isVisible = viewAdapter.getSelection().count == 1
+            }
 
-    override fun onQuickBarButtonClick(buttonId: Int, itemId: Long) {
-        item2databaseIds[itemId]?.let {
-            handleActionItemClick(buttonId, setOf(it))
+            visibility = View.VISIBLE
+
+            activity?.setDecorFitsSystemWindowsForBottomToolbar(visibility)
         }
     }
 

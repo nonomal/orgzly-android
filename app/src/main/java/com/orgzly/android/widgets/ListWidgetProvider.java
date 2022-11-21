@@ -22,6 +22,7 @@ import com.orgzly.android.prefs.AppPreferences;
 import com.orgzly.android.ui.main.MainActivity;
 import com.orgzly.android.ui.share.ShareActivity;
 import com.orgzly.android.ui.util.ActivityUtils;
+import com.orgzly.android.ui.util.SystemServices;
 import com.orgzly.android.usecase.NoteUpdateStateToggle;
 import com.orgzly.android.usecase.UseCaseRunner;
 import com.orgzly.android.util.LogUtils;
@@ -87,7 +88,6 @@ public class ListWidgetProvider extends AppWidgetProvider {
                 remoteViews.setRemoteAdapter(R.id.list_widget_list_view, serviceIntent);
 
                 remoteViews.setEmptyView(R.id.list_widget_list_view, R.id.list_widget_empty_view);
-                remoteViews.setTextViewText(R.id.list_widget_empty_view, context.getString(R.string.no_notes_found_after_search));
 
                 // Rows - open note
                 final Intent onClickIntent = new Intent(context, ListWidgetProvider.class);
@@ -103,14 +103,16 @@ public class ListWidgetProvider extends AppWidgetProvider {
                 remoteViews.setPendingIntentTemplate(R.id.list_widget_list_view, onClickPendingIntent);
 
                 // Plus icon - new note
-                remoteViews.setOnClickPendingIntent(R.id.list_widget_header_add, ShareActivity.createNewNoteIntent(context, savedSearch));
+                remoteViews.setOnClickPendingIntent(
+                        R.id.list_widget_header_add,
+                        ShareActivity.createNewNotePendingIntent(context, "widget-" + appWidgetId, savedSearch));
 
                 // Logo - open query
                 Intent openIntent = Intent.makeRestartActivityTask(new ComponentName(context, MainActivity.class));
                 openIntent.putExtra(AppIntent.EXTRA_QUERY_STRING, savedSearch.getQuery());
                 openIntent.setData(Uri.parse(serviceIntent.toUri(Intent.URI_INTENT_SCHEME)));
                 remoteViews.setOnClickPendingIntent(
-                        R.id.list_widget_header_icon,
+                        R.id.list_widget_header_logo,
                         PendingIntent.getActivity(
                                 context,
                                 0,
@@ -184,7 +186,7 @@ public class ListWidgetProvider extends AppWidgetProvider {
          schedule updates via AlarmManager, because we don't want to wake the device on every update
          see https://developer.android.com/guide/topics/appwidgets/index.html#MetaData
          */
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        AlarmManager alarmManager = SystemServices.getAlarmManager(context);
 
         PendingIntent intent = getAlarmIntent(context);
 
@@ -213,9 +215,7 @@ public class ListWidgetProvider extends AppWidgetProvider {
     }
 
     private void clearUpdate(Context context) {
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-
-        alarmManager.cancel(getAlarmIntent(context));
+        SystemServices.getAlarmManager(context).cancel(getAlarmIntent(context));
     }
 
     private PendingIntent getAlarmIntent(Context context) {
@@ -254,6 +254,8 @@ public class ListWidgetProvider extends AppWidgetProvider {
             savedSearch = new SavedSearch(0, context.getString(R.string.list_widget_select_search), "", 0);
         }
 
+        if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, savedSearch, appWidgetId, filterId);
+
         return savedSearch;
     }
 
@@ -290,7 +292,7 @@ public class ListWidgetProvider extends AppWidgetProvider {
     public void onReceive(Context context, Intent intent) {
         App.appComponent.inject(this);
 
-        if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, intent, intent.getExtras());
+        if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, intent);
 
         if (AppIntent.ACTION_UPDATE_LIST_WIDGET.equals(intent.getAction())) {
             updateListContents(context);

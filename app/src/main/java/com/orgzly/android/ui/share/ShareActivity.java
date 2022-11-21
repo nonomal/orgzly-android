@@ -30,7 +30,7 @@ import com.orgzly.android.ui.AppSnackbarUtils;
 import com.orgzly.android.ui.CommonActivity;
 import com.orgzly.android.ui.NotePlace;
 import com.orgzly.android.SharingShortcutsManager;
-import com.orgzly.android.ui.main.SyncFragment;
+import com.orgzly.android.ui.sync.SyncFragment;
 import com.orgzly.android.ui.note.NoteFragment;
 import com.orgzly.android.ui.util.ActivityUtils;
 import com.orgzly.android.usecase.UseCase;
@@ -102,6 +102,8 @@ public class ShareActivity extends CommonActivity
         String action = intent.getAction();
         String type = intent.getType();
 
+        if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, intent);
+
         if (action == null) {
             // mError = getString(R.string.share_action_not_set);
 
@@ -155,18 +157,27 @@ public class ShareActivity extends CommonActivity
                         Book book = dataRepository.getBook(bookName);
                         if (book != null) {
                             data.bookId = book.getId();
+                            if (BuildConfig.LOG_DEBUG)
+                                LogUtils.d(TAG, "Using book " + data.bookId
+                                        + " from passed query " + query + " (" + bookName + ")");
                         }
                     }
                 }
 
                 if (intent.hasExtra(AppIntent.EXTRA_BOOK_ID)) {
                     data.bookId = intent.getLongExtra(AppIntent.EXTRA_BOOK_ID, 0L);
+                    if (BuildConfig.LOG_DEBUG)
+                        LogUtils.d(TAG, "Using book " + data.bookId
+                                + " from passed book ID");
                 }
 
                 // Coming from Direct Share shortcut
                 if (intent.hasExtra(Intent.EXTRA_SHORTCUT_ID)) {
                     String shortcutId = intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID);
                     data.bookId = SharingShortcutsManager.bookIdFromShortcutId(shortcutId);
+                    if (BuildConfig.LOG_DEBUG)
+                        LogUtils.d(TAG, "Using book " + data.bookId
+                                + " from passed shortcut ID");
                 }
 
             } else if (type.startsWith("image/")) {
@@ -242,12 +253,17 @@ public class ShareActivity extends CommonActivity
         }
     }
 
-    public static PendingIntent createNewNoteIntent(Context context, SavedSearch savedSearch) {
-        Intent resultIntent = createNewNoteInNotebookIntent(context, null);
+    public static PendingIntent createNewNotePendingIntent(Context context, String category, SavedSearch savedSearch) {
+        Intent resultIntent = createNewNoteIntent(context);
+
+        // For distinguishing pending events
+        resultIntent.addCategory(category);
 
         if (savedSearch != null) {
             resultIntent.putExtra(AppIntent.EXTRA_QUERY_STRING, savedSearch.getQuery());
         }
+
+        if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, resultIntent);
 
         // The stack builder object will contain an artificial back stack for the
         // started Activity.
@@ -260,21 +276,14 @@ public class ShareActivity extends CommonActivity
         stackBuilder.addNextIntent(resultIntent);
 
         return stackBuilder.getPendingIntent(
-                0,
-                ActivityUtils.immutable(PendingIntent.FLAG_UPDATE_CURRENT));
+                0, ActivityUtils.immutable(PendingIntent.FLAG_UPDATE_CURRENT));
     }
 
-    /**
-     * @param bookId null means default
-     */
-    public static Intent createNewNoteInNotebookIntent(Context context, Long bookId) {
+    public static Intent createNewNoteIntent(Context context) {
         Intent intent = new Intent(context, ShareActivity.class);
         intent.setAction(Intent.ACTION_SEND);
         intent.setType("text/plain");
         intent.putExtra(Intent.EXTRA_TEXT, "");
-        if (bookId != null) {
-            intent.putExtra(AppIntent.EXTRA_BOOK_ID, bookId);
-        }
         return intent;
     }
 
@@ -290,10 +299,6 @@ public class ShareActivity extends CommonActivity
     @Override
     public void onNoteCanceled() {
         finish();
-    }
-
-    @Override
-    public void onSyncFinished(String msg) {
     }
 
     /**

@@ -19,6 +19,7 @@ import com.orgzly.android.db.NotesClipboard
 import com.orgzly.android.db.entity.Book
 import com.orgzly.android.db.entity.NoteView
 import com.orgzly.android.prefs.AppPreferences
+import com.orgzly.android.sync.SyncRunner
 import com.orgzly.android.ui.CommonActivity
 import com.orgzly.android.ui.NotePlace
 import com.orgzly.android.ui.Place
@@ -26,17 +27,17 @@ import com.orgzly.android.ui.dialogs.TimestampDialogFragment
 import com.orgzly.android.ui.drawer.DrawerItem
 import com.orgzly.android.ui.main.SharedMainActivityViewModel
 import com.orgzly.android.ui.main.setupSearchView
+import com.orgzly.android.ui.notes.ItemGestureDetector
 import com.orgzly.android.ui.notes.NoteItemViewHolder
+import com.orgzly.android.ui.notes.NotePopup
 import com.orgzly.android.ui.notes.NotesFragment
 import com.orgzly.android.ui.notes.book.BookViewModel.Companion.APP_BAR_DEFAULT_MODE
 import com.orgzly.android.ui.notes.book.BookViewModel.Companion.APP_BAR_SELECTION_MODE
 import com.orgzly.android.ui.notes.book.BookViewModel.Companion.APP_BAR_SELECTION_MOVE_MODE
-import com.orgzly.android.ui.notes.quickbar.ItemGestureDetector
-import com.orgzly.android.ui.notes.quickbar.QuickBarListener
-import com.orgzly.android.ui.notes.quickbar.QuickBars
 import com.orgzly.android.ui.refile.RefileFragment
 import com.orgzly.android.ui.settings.SettingsActivity
 import com.orgzly.android.ui.util.ActivityUtils
+import com.orgzly.android.ui.util.setDecorFitsSystemWindowsForBottomToolbar
 import com.orgzly.android.ui.util.setup
 import com.orgzly.android.ui.util.styledAttributes
 import com.orgzly.android.util.LogUtils
@@ -51,8 +52,7 @@ class BookFragment :
         NotesFragment(),
         TimestampDialogFragment.OnDateTimeSetListener,
         DrawerItem,
-        BookAdapter.OnClickListener,
-        QuickBarListener {
+        BookAdapter.OnClickListener {
 
     private lateinit var binding: FragmentBookBinding
 
@@ -117,6 +117,7 @@ class BookFragment :
         viewModel = ViewModelProvider(this, factory).get(BookViewModel::class.java)
 
         requireActivity().onBackPressedDispatcher.addCallback(this, appBarBackPressHandler)
+        requireActivity().onBackPressedDispatcher.addCallback(this, notePopupDismissOnBackPress)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -128,9 +129,9 @@ class BookFragment :
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val quickBars = QuickBars(binding.root.context, true)
+        if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, savedInstanceState)
 
-        viewAdapter = BookAdapter(mBookId, binding.root.context, this, quickBars, inBook = true).apply {
+        viewAdapter = BookAdapter(mBookId, binding.root.context, this, inBook = true).apply {
             setHasStableIds(true)
         }
 
@@ -151,11 +152,13 @@ class BookFragment :
             rv.itemAnimator = null
 
             rv.addOnItemTouchListener(ItemGestureDetector(rv.context, object: ItemGestureDetector.Listener {
-                override fun onFling(direction: Int, x: Float, y: Float) {
-                    rv.findChildViewUnder(x, y)?.let { itemView ->
+                override fun onSwipe(direction: Int, e1: MotionEvent, e2: MotionEvent) {
+                    rv.findChildViewUnder(e1.x, e1.y)?.let { itemView ->
                         rv.findContainingViewHolder(itemView)?.let { vh ->
                             (vh as? NoteItemViewHolder)?.let {
-                                quickBars.onFling(it, direction, this@BookFragment)
+                                showPopupWindow(vh.itemId, NotePopup.Location.BOOK, direction, itemView, e1, e2) { noteId, buttonId ->
+                                    handleActionItemClick(setOf(noteId), buttonId)
+                                }
                             }
                         }
                     }
@@ -164,16 +167,6 @@ class BookFragment :
         }
 
         binding.swipeContainer.setup()
-    }
-
-    override fun onQuickBarButtonClick(buttonId: Int, itemId: Long) {
-        handleActionItemClick(setOf(itemId), buttonId)
-    }
-
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-
-        if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, savedInstanceState)
 
         viewModel.flipperDisplayedChild.observe(viewLifecycleOwner, Observer { child ->
             if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG, "Observed flipper displayed child: $child")
@@ -218,7 +211,7 @@ class BookFragment :
 
         viewModel.refileRequestEvent.observeSingle(viewLifecycleOwner, Observer {
             RefileFragment.getInstance(it.selected, it.count)
-                    .show(requireFragmentManager(), RefileFragment.FRAGMENT_TAG)
+                    .show(childFragmentManager, RefileFragment.FRAGMENT_TAG)
         })
 
         viewModel.notesDeleteRequest.observeSingle(viewLifecycleOwner, Observer { pair ->
@@ -295,7 +288,7 @@ class BookFragment :
         } else if (notes == null) {
             viewModel.setFlipperDisplayedChild(BookViewModel.FlipperDisplayedChild.LOADING)
 
-        } else if (viewAdapter.isPrefaceDisplayed() || !notes.isNullOrEmpty()) {
+        } else if (notes.isNotEmpty() || viewAdapter.isPrefaceDisplayed()) {
             viewModel.setFlipperDisplayedChild(BookViewModel.FlipperDisplayedChild.LOADED)
 
         } else {
@@ -336,12 +329,6 @@ class BookFragment :
             }
         } ?: throw IllegalArgumentException("No arguments passed")
     }
-
-//    override fun onPrepareOptionsMenu(menu: Menu) {
-//        super.onPrepareOptionsMenu(menu)
-//
-//
-//    }
 
     /*
      * Actions
@@ -487,9 +474,7 @@ class BookFragment :
 
             ActivityUtils.keepScreenOnUpdateMenuItem(activity, menu)
 
-            setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                typedArray.getResourceId(R.styleable.Icons_ic_menu_24dp, 0)
-            })
+            setNavigationIcon(R.drawable.ic_menu)
 
             setNavigationOnClickListener {
                 sharedMainActivityViewModel.openDrawer()
@@ -537,6 +522,8 @@ class BookFragment :
         if (BuildConfig.LOG_DEBUG) LogUtils.d(TAG)
 
         binding.bottomToolbar.visibility = View.GONE
+
+        activity?.setDecorFitsSystemWindowsForBottomToolbar(binding.bottomToolbar.visibility)
     }
 
     private fun topToolbarToMainSelection() {
@@ -547,9 +534,7 @@ class BookFragment :
             inflateMenu(R.menu.book_cab_top)
             hideMenuItemsBasedOnSelection(menu)
 
-            setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                typedArray.getResourceId(R.styleable.Icons_ic_arrow_back_24dp, 0)
-            })
+            setNavigationIcon(R.drawable.ic_arrow_back)
 
             setNavigationOnClickListener {
                 viewModel.appBar.handleOnBackPressed()
@@ -578,9 +563,11 @@ class BookFragment :
                 handleActionItemClick(viewAdapter.getSelection().getIds(), menuItem.itemId, menuItem)
                 true
             }
-        }
 
-        binding.bottomToolbar.visibility = View.VISIBLE
+            visibility = View.VISIBLE
+
+            activity?.setDecorFitsSystemWindowsForBottomToolbar(visibility)
+        }
     }
 
     private fun topToolbarToNextSelection() {
@@ -591,9 +578,7 @@ class BookFragment :
             inflateMenu(R.menu.book_cab_moving)
             hideMenuItemsBasedOnSelection(menu)
 
-            setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                typedArray.getResourceId(R.styleable.Icons_ic_arrow_back_24dp, 0)
-            })
+            setNavigationIcon(R.drawable.ic_arrow_back)
 
             setNavigationOnClickListener {
                 viewModel.appBar.handleOnBackPressed()
@@ -626,9 +611,11 @@ class BookFragment :
                 handleActionItemClick(viewAdapter.getSelection().getIds(), menuItem.itemId, menuItem)
                 false
             }
-        }
 
-        binding.bottomToolbar.visibility = View.VISIBLE
+            visibility = View.VISIBLE
+
+            activity?.setDecorFitsSystemWindowsForBottomToolbar(visibility)
+        }
     }
 
     private fun hideMenuItemsBasedOnSelection(menu: Menu) {
@@ -648,23 +635,19 @@ class BookFragment :
         }
 
         when (itemId) {
-            R.id.quick_bar_open -> {
-                openNote(ids.first())
-            }
-
-            R.id.quick_bar_new_above,
+            R.id.note_popup_new_above,
             R.id.new_note_above -> {
                 newNoteRelativeToSelection(Place.ABOVE, ids.first())
                 viewModel.appBar.toMode(APP_BAR_DEFAULT_MODE)
             }
 
-            R.id.quick_bar_new_under,
+            R.id.note_popup_new_under,
             R.id.new_note_under -> {
                 newNoteRelativeToSelection(Place.UNDER, ids.first())
                 viewModel.appBar.toMode(APP_BAR_DEFAULT_MODE)
             }
 
-            R.id.quick_bar_new_below,
+            R.id.note_popup_new_below,
             R.id.new_note_below -> {
                 newNoteRelativeToSelection(Place.BELOW, ids.first())
                 viewModel.appBar.toMode(APP_BAR_DEFAULT_MODE)
@@ -678,7 +661,7 @@ class BookFragment :
             in deadlineTimeButtonIds() ->
                 displayTimestampDialog(itemId, ids)
 
-            R.id.quick_bar_delete,
+            R.id.note_popup_delete,
             R.id.delete_note -> {
                 delete(ids)
 
@@ -702,7 +685,7 @@ class BookFragment :
                 viewModel.appBar.toMode(APP_BAR_DEFAULT_MODE)
             }
 
-            R.id.quick_bar_refile,
+            R.id.note_popup_refile,
             R.id.refile ->
                 viewModel.refile(ids)
 
@@ -728,18 +711,33 @@ class BookFragment :
             R.id.notes_action_move_right ->
                 listener?.onNotesDemoteRequest(ids)
 
-            R.id.quick_bar_state,
+            R.id.note_popup_set_state,
             R.id.state ->
                 listener?.let {
                     openNoteStateDialog(it, ids, null)
                 }
 
-            R.id.quick_bar_done,
+            R.id.note_popup_toggle_state,
             R.id.toggle_state -> {
                 listener?.onStateToggleRequest(ids)
             }
 
-            R.id.quick_bar_focus,
+            R.id.note_popup_clock_in,
+            R.id.clock_in -> {
+                listener?.onClockIn(ids)
+            }
+
+            R.id.note_popup_clock_out,
+            R.id.clock_out -> {
+                listener?.onClockOut(ids)
+            }
+
+            R.id.note_popup_clock_cancel,
+            R.id.clock_cancel -> {
+                listener?.onClockCancel(ids)
+            }
+
+            R.id.note_popup_focus,
             R.id.focus ->
                 listener?.onNoteFocusInBookRequest(ids.first())
         }
@@ -765,6 +763,10 @@ class BookFragment :
                 if (item != null) {
                     dialog = ActivityUtils.keepScreenOnToggle(activity, item)
                 }
+            }
+
+            R.id.sync -> {
+                SyncRunner.startSync()
             }
 
             R.id.activity_action_settings -> {

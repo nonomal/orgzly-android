@@ -15,17 +15,6 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <ProgressBar
-            android:id="@+id/sync_progress_bar"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="?android:listDivider"/>
-
         <!-- Sync button. Not using compound drawable as image has to be rotated while syncing. -->
         <LinearLayout
             android:id="@+id/sync_button_container"
@@ -43,18 +32,16 @@
                 android:id="@+id/sync_button_icon"
                 android:layout_height="wrap_content"
                 android:layout_width="wrap_content"
-                android:src="?attr/ic_sync_24dp"
+                android:src="@drawable/ic_sync"
                 android:contentDescription="@string/sync"/>
 
             <TextView
                 android:id="@+id/sync_button_text"
                 android:layout_height="wrap_content"
                 android:layout_width="wrap_content"
-                android:layout_marginLeft="16dp"
                 android:layout_marginStart="16dp"
                 android:gravity="center_vertical"
                 tools:text="@string/sync_button_sample"
-                android:textAppearance="?android:attr/textAppearanceSmall"
                 android:scrollHorizontally="true"
                 android:ellipsize="end"
                 android:maxLines="1"

@@ -6,15 +6,23 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.orgzly.BuildConfig
+import com.orgzly.android.data.logs.AppLogsRepository
 import com.orgzly.android.reminders.RemindersScheduler
 import com.orgzly.android.ui.notifications.Notifications
+import com.orgzly.android.ui.util.getNotificationManager
 import com.orgzly.android.usecase.NoteUpdateStateDone
 import com.orgzly.android.usecase.UseCaseRunner.run
 import com.orgzly.android.util.LogUtils.d
 import com.orgzly.android.util.async
+import javax.inject.Inject
 
 class NotificationBroadcastReceiver : BroadcastReceiver() {
+    @Inject
+    lateinit var remindersScheduler: RemindersScheduler
+
     override fun onReceive(context: Context, intent: Intent) {
+        App.appComponent.inject(this)
+
         if (BuildConfig.LOG_DEBUG) d(TAG, intent, intent.extras)
 
         async {
@@ -33,8 +41,7 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
                     val timestamp = intent.getLongExtra(AppIntent.EXTRA_SNOOZE_TIMESTAMP, 0)
 
                     // Pass true as hasTime to use the alarm clock
-                    RemindersScheduler.scheduleSnoozeEnd(
-                        context, noteId, noteTimeType, timestamp, true)
+                    remindersScheduler.scheduleSnoozeEnd(noteId, noteTimeType, timestamp, true)
                 }
             }
         }
@@ -50,11 +57,10 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
         val id = intent.getIntExtra(AppIntent.EXTRA_NOTIFICATION_ID, 0)
 
         if (id > 0) {
-            val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-            notificationManager.cancel(tag, id)
-            cancelRemindersSummary(notificationManager)
+            context.getNotificationManager().let {
+                it.cancel(tag, id)
+                cancelRemindersSummary(it)
+            }
         }
     }
 

@@ -17,7 +17,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -31,7 +30,9 @@ import com.orgzly.android.data.DataRepository
 import com.orgzly.android.db.entity.Book
 import com.orgzly.android.db.entity.BookView
 import com.orgzly.android.prefs.AppPreferences
-import com.orgzly.android.ui.*
+import com.orgzly.android.sync.SyncRunner
+import com.orgzly.android.ui.CommonFragment
+import com.orgzly.android.ui.OnViewHolderClickListener
 import com.orgzly.android.ui.books.BooksViewModel.Companion.APP_BAR_DEFAULT_MODE
 import com.orgzly.android.ui.books.BooksViewModel.Companion.APP_BAR_SELECTION_MODE
 import com.orgzly.android.ui.dialogs.SimpleOneLinerDialog
@@ -40,11 +41,10 @@ import com.orgzly.android.ui.main.SharedMainActivityViewModel
 import com.orgzly.android.ui.main.setupSearchView
 import com.orgzly.android.ui.repos.ReposActivity
 import com.orgzly.android.ui.settings.SettingsActivity
-import com.orgzly.android.ui.util.ActivityUtils
+import com.orgzly.android.ui.showSnackbar
+import com.orgzly.android.ui.util.KeyboardUtils
 import com.orgzly.android.ui.util.setup
-import com.orgzly.android.ui.util.styledAttributes
 import com.orgzly.android.usecase.BookDelete
-import com.orgzly.android.util.AppPermissions
 import com.orgzly.android.util.LogUtils
 import com.orgzly.android.util.MiscUtils
 import com.orgzly.databinding.DialogBookDeleteBinding
@@ -52,12 +52,11 @@ import com.orgzly.databinding.DialogBookRenameBinding
 import com.orgzly.databinding.FragmentBooksBinding
 import javax.inject.Inject
 
-
 /**
  * Displays all notebooks.
  * Allows creating new, deleting, renaming, setting links etc.
  */
-class BooksFragment : Fragment(), DrawerItem, OnViewHolderClickListener<BookView> {
+class BooksFragment : CommonFragment(), DrawerItem, OnViewHolderClickListener<BookView> {
 
     private lateinit var binding: FragmentBooksBinding
 
@@ -67,7 +66,6 @@ class BooksFragment : Fragment(), DrawerItem, OnViewHolderClickListener<BookView
 
     private var listener: Listener? = null
 
-    private var withOptionsMenu = true
     private var withActionBar = true
 
     @Inject
@@ -96,7 +94,6 @@ class BooksFragment : Fragment(), DrawerItem, OnViewHolderClickListener<BookView
     private fun parseArguments() {
         requireNotNull(arguments) { "No arguments found to " + BooksFragment::class.java.simpleName }
 
-        withOptionsMenu = arguments?.getBoolean(ARG_WITH_OPTIONS_MENU) ?: true
         withActionBar = arguments?.getBoolean(ARG_WITH_ACTION_BAR) ?: true
     }
 
@@ -183,9 +180,7 @@ class BooksFragment : Fragment(), DrawerItem, OnViewHolderClickListener<BookView
                 menu.clear()
                 inflateMenu(R.menu.books_actions)
 
-                setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                    typedArray.getResourceId(R.styleable.Icons_ic_menu_24dp, 0)
-                })
+                setNavigationIcon(R.drawable.ic_menu)
 
                 setNavigationOnClickListener {
                     sharedMainActivityViewModel.openDrawer()
@@ -195,6 +190,10 @@ class BooksFragment : Fragment(), DrawerItem, OnViewHolderClickListener<BookView
                     when (menuItem.itemId) {
                         R.id.books_options_menu_item_import_book -> {
                             pickFileForBookImport.launch("*/*")
+                        }
+
+                        R.id.sync -> {
+                            SyncRunner.startSync()
                         }
 
                         R.id.activity_action_settings -> {
@@ -227,9 +226,7 @@ class BooksFragment : Fragment(), DrawerItem, OnViewHolderClickListener<BookView
             menu.clear()
             inflateMenu(R.menu.books_cab)
 
-            setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                typedArray.getResourceId(R.styleable.Icons_ic_arrow_back_24dp, 0)
-            })
+            setNavigationIcon(R.drawable.ic_arrow_back)
 
             setNavigationOnClickListener {
                 viewModel.appBar.toMode(APP_BAR_DEFAULT_MODE)
@@ -376,8 +373,8 @@ class BooksFragment : Fragment(), DrawerItem, OnViewHolderClickListener<BookView
             true
         }
 
-        d.setOnShowListener { ActivityUtils.openSoftKeyboard(activity, dialogBinding.name) }
-        d.setOnDismissListener { ActivityUtils.closeSoftKeyboard(activity) }
+        d.setOnShowListener { KeyboardUtils.openSoftKeyboard(dialogBinding.name) }
+        d.setOnDismissListener { KeyboardUtils.closeSoftKeyboard(activity) }
 
         // Disable positive button if value is empty or same
         dialogBinding.name.addTextChangedListener(object : TextWatcher {
@@ -610,17 +607,14 @@ class BooksFragment : Fragment(), DrawerItem, OnViewHolderClickListener<BookView
          */
         val FRAGMENT_TAG: String = BooksFragment::class.java.name
 
-        private const val ARG_WITH_OPTIONS_MENU = "with_options_menu"
         private const val ARG_WITH_ACTION_BAR = "with_action_bar"
 
-        val instance: BooksFragment
-            get() = getInstance(true, true)
-
-        fun getInstance(withOptionsMenu: Boolean, withActionBar: Boolean): BooksFragment {
+        @JvmStatic
+        @JvmOverloads
+        fun getInstance(withActionBar: Boolean = true): BooksFragment {
             val fragment = BooksFragment()
             val args = Bundle()
 
-            args.putBoolean(ARG_WITH_OPTIONS_MENU, withOptionsMenu)
             args.putBoolean(ARG_WITH_ACTION_BAR, withActionBar)
 
             fragment.arguments = args

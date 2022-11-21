@@ -16,15 +16,13 @@ import com.orgzly.android.ui.SelectableItemAdapter
 import com.orgzly.android.ui.Selection
 import com.orgzly.android.ui.notes.NoteItemViewBinder
 import com.orgzly.android.ui.notes.NoteItemViewHolder
-import com.orgzly.android.ui.notes.quickbar.QuickBars
 import com.orgzly.databinding.ItemHeadBinding
-import com.orgzly.databinding.ItemHeadBookPrefaceBinding
+import com.orgzly.databinding.ItemPrefaceBinding
 
 class BookAdapter(
     private val bookId: Long,
     private val context: Context,
     private val clickListener: OnClickListener,
-    private val quickBar: QuickBars,
     private val inBook: Boolean
 ) :
     ListAdapterWithHeaders<NoteView, RecyclerView.ViewHolder>(DIFF_CALLBACK, 1),
@@ -48,7 +46,7 @@ class BookAdapter(
 
     inner class FoldedViewHolder(view: View) : RecyclerView.ViewHolder(view)
 
-    inner class PrefaceViewHolder(val binding: ItemHeadBookPrefaceBinding) :
+    inner class PrefaceViewHolder(val binding: ItemPrefaceBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         init {
@@ -60,7 +58,7 @@ class BookAdapter(
 
     override fun getItemViewType(position: Int): Int {
         return when {
-            position == 0 -> R.layout.item_head_book_preface
+            position == 0 -> R.layout.item_preface
             isVisible(getItem(position).note) -> VISIBLE_ITEM_TYPE
             else -> HIDDEN_ITEM_TYPE
         }
@@ -72,8 +70,8 @@ class BookAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return when (viewType) {
-            R.layout.item_head_book_preface -> {
-                val binding = ItemHeadBookPrefaceBinding.inflate(
+            R.layout.item_preface -> {
+                val binding = ItemPrefaceBinding.inflate(
                     LayoutInflater.from(context), parent, false)
 
                 PrefaceViewHolder(binding)
@@ -114,9 +112,7 @@ class BookAdapter(
 
                 noteItemViewBinder.bind(holder, noteView)
 
-                quickBar.bind(holder)
-
-                getSelection().setIsSelectedBackground(holder.itemView, note.id)
+                getSelection().setBackgroundIfSelected(holder.itemView, note.id)
             }
         }
     }

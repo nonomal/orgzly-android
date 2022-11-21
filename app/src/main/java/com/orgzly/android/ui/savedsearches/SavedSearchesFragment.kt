@@ -1,6 +1,5 @@
 package com.orgzly.android.ui.savedsearches
 
-import androidx.appcompat.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -10,7 +9,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
-import androidx.fragment.app.Fragment
+import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.DividerItemDecoration
@@ -21,6 +20,8 @@ import com.orgzly.android.App
 import com.orgzly.android.data.DataRepository
 import com.orgzly.android.db.entity.SavedSearch
 import com.orgzly.android.savedsearch.FileSavedSearchStore
+import com.orgzly.android.sync.SyncRunner
+import com.orgzly.android.ui.CommonFragment
 import com.orgzly.android.ui.OnViewHolderClickListener
 import com.orgzly.android.ui.drawer.DrawerItem
 import com.orgzly.android.ui.main.SharedMainActivityViewModel
@@ -29,7 +30,6 @@ import com.orgzly.android.ui.savedsearches.SavedSearchesViewModel.Companion.APP_
 import com.orgzly.android.ui.savedsearches.SavedSearchesViewModel.Companion.APP_BAR_SELECTION_MODE
 import com.orgzly.android.ui.settings.SettingsActivity
 import com.orgzly.android.ui.showSnackbar
-import com.orgzly.android.ui.util.styledAttributes
 import com.orgzly.android.util.LogUtils
 import com.orgzly.databinding.FragmentSavedSearchesBinding
 import java.io.IOException
@@ -38,7 +38,7 @@ import javax.inject.Inject
 /**
  * Displays and allows modifying saved searches.
  */
-class SavedSearchesFragment : Fragment(), DrawerItem, OnViewHolderClickListener<SavedSearch> {
+class SavedSearchesFragment : CommonFragment(), DrawerItem, OnViewHolderClickListener<SavedSearch> {
     private lateinit var binding: FragmentSavedSearchesBinding
 
     private var listener: Listener? = null
@@ -110,9 +110,7 @@ class SavedSearchesFragment : Fragment(), DrawerItem, OnViewHolderClickListener<
             menu.clear()
             inflateMenu(R.menu.saved_searches_actions)
 
-            setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                typedArray.getResourceId(R.styleable.Icons_ic_menu_24dp, 0)
-            })
+            setNavigationIcon(R.drawable.ic_menu)
 
             setNavigationOnClickListener {
                 sharedMainActivityViewModel.openDrawer()
@@ -133,9 +131,13 @@ class SavedSearchesFragment : Fragment(), DrawerItem, OnViewHolderClickListener<
                     }
 
                     R.id.saved_searches_help -> {
-                        val uri = Uri.parse("http://www.orgzly.com/help#search")
+                        val uri = Uri.parse("https://www.orgzly.com/docs#search")
                         val intent = Intent(Intent.ACTION_VIEW, uri)
                         startActivity(intent)
+                    }
+
+                    R.id.sync -> {
+                        SyncRunner.startSync()
                     }
 
                     R.id.activity_action_settings -> {
@@ -173,9 +175,7 @@ class SavedSearchesFragment : Fragment(), DrawerItem, OnViewHolderClickListener<
                 menu.findItem(R.id.saved_searches_cab_move_down).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
             }
 
-            setNavigationIcon(context.styledAttributes(R.styleable.Icons) { typedArray ->
-                typedArray.getResourceId(R.styleable.Icons_ic_arrow_back_24dp, 0)
-            })
+            setNavigationIcon(R.drawable.ic_arrow_back)
 
             setNavigationOnClickListener {
                 viewModel.appBar.toMode(APP_BAR_DEFAULT_MODE)

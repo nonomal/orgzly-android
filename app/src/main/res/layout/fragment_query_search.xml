@@ -39,21 +39,24 @@
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Top toolbar -->
+    <!-- TODO: DRY -->
     <com.google.android.material.appbar.AppBarLayout
         style="@style/AppBarLayoutStyle">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/top_toolbar"
             style="@style/TopToolbar"
-            app:menu="@menu/query_actions"
-            app:navigationIcon="?attr/ic_menu_24dp" />
+            app:navigationIcon="@drawable/ic_menu" />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/sync_toolbar_progress"
+            style="@style/SyncProgressIndicator" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Bottom toolbar -->
-    <com.google.android.material.appbar.MaterialToolbar
+    <com.google.android.material.bottomappbar.BottomAppBar
         android:id="@+id/bottom_toolbar"
-        style="@style/BottomToolbar"
-        app:menu="@menu/query_cab" />
+        style="@style/BottomToolbar" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
